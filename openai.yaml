@@ -1,0 +1,1224 @@
+openapi: 3.1.0
+
+info:
+  title: Blackbox AI Agent API
+  description: >
+    Create, manage, and stream AI agent tasks that work on GitHub repositories.
+    Supports single-agent tasks, multi-agent parallel execution, real-time log
+    streaming, and task continuation.
+  version: 1.0.0
+  contact:
+    url: https://cloud.blackbox.ai
+
+servers:
+  - url: https://cloud.blackbox.ai/api
+    description: Production
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Tasks
+    description: Create and manage agent tasks
+  - name: Streaming
+    description: Real-time log streaming via SSE
+
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── POST /tasks ─────────────────────────────────────────────────────────────
+  /tasks:
+    post:
+      operationId: createTask
+      tags: [Tasks]
+      summary: Create an Agent Task
+      description: >
+        Create and execute a task using one AI agent (single-agent mode) or
+        multiple AI agents running in parallel (multi-agent mode).
+        Provide `selectedAgents` with one element for single-agent, or 2–5
+        elements for multi-agent parallel execution.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+            examples:
+              single_agent:
+                summary: Single-agent repository task
+                value:
+                  prompt: "Add Stripe Payment Integration"
+                  repoUrl: "https://github.com/my-org/my-repo.git"
+                  selectedBranch: "main"
+                  selectedAgent: "blackbox"
+                  selectedModel: "blackbox-pro"
+              multi_agent:
+                summary: Multi-agent parallel task
+                value:
+                  prompt: "Add README in Mandarin"
+                  repoUrl: "https://github.com/my-org/my-repo.git"
+                  selectedBranch: "main"
+                  selectedAgents:
+                    - agent: "claude"
+                      model: "blackboxai/anthropic/claude-sonnet-4.5"
+                    - agent: "blackbox"
+                      model: "blackboxai/blackbox-pro"
+      responses:
+        '200':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateTaskResponse'
+              example:
+                task:
+                  id: "ac2wbk3lXAufdSdIscsirg"
+                  userId: "user@example.com"
+                  teamId: null
+                  prompt: "Create README in French"
+                  repoUrl: "https://github.com/my-org/my-repo.git"
+                  selectedAgent: "blackbox"
+                  selectedModel: "blackbox-pro"
+                  installDependencies: false
+                  maxDuration: 300
+                  keepAlive: false
+                  status: "pending"
+                  progress: 0
+                  logs: []
+                  error: null
+                  selectedBranch: "main"
+                  branchName: null
+                  sandboxUrl: null
+                  sandboxId: null
+                  merged: false
+                  prNumber: null
+                  prUrl: null
+                  multiLaunch: false
+                  selectedAgents: null
+                  agentExecutions: null
+                  diffStats: null
+                  createdAt: "2025-11-19T23:40:21.585Z"
+                  updatedAt: "2025-11-19T23:40:21.585Z"
+                  completedAt: null
+                  isPublic: false
+                taskUrl: "https://cloud.blackbox.ai/tasks/ac2wbk3lXAufdSdIscsirg"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+
+    # ── GET /tasks ─────────────────────────────────────────────────────────────
+    get:
+      operationId: listTasks
+      tags: [Tasks]
+      summary: List Tasks
+      description: >
+        Retrieve a paginated list of tasks with optional filtering by type and
+        status.
+      parameters:
+        - name: limit
+          in: query
+          description: Number of tasks to return per page (1–100).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          example: 10
+        - name: offset
+          in: query
+          description: Number of tasks to skip for pagination.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+        - name: filter
+          in: query
+          description: Filter tasks by type.
+          schema:
+            type: string
+            enum: [all, tasks, batch]
+            default: all
+          example: all
+        - name: status
+          in: query
+          description: Filter tasks by status group.
+          schema:
+            type: string
+            enum: [active, completed, failed, stopped]
+          example: active
+      responses:
+        '200':
+          description: Tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTasksResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── GET /tasks/{taskId} ──────────────────────────────────────────────────────
+  /tasks/{taskId}:
+    get:
+      operationId: getTask
+      tags: [Tasks]
+      summary: Get Task Details
+      description: >
+        Retrieve comprehensive details about a specific task including status,
+        progress, logs, diff stats, and multi-agent execution results.
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      responses:
+        '200':
+          description: Task details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTaskResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    # ── PATCH /tasks/{taskId} ──────────────────────────────────────────────────
+    patch:
+      operationId: cancelTask
+      tags: [Tasks]
+      summary: Cancel Task
+      description: >
+        Stop a running task. Terminates the sandbox environment and marks the
+        task as stopped. Only tasks in `processing` or `saving` status can be
+        cancelled.
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelTaskRequest'
+            example:
+              action: "stop"
+      responses:
+        '200':
+          description: Task cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelTaskResponse'
+              example:
+                message: "Task stopped successfully"
+                task:
+                  id: "9qQe2F8Z_nXx9-eJA0BD6"
+                  userId: "user@example.com"
+                  status: "stopped"
+                  error: "Task was stopped by user"
+                  updatedAt: "2024-01-15T10:30:00.000Z"
+                  completedAt: "2024-01-15T10:30:00.000Z"
+        '400':
+          description: Task is not in a stoppable state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Task can only be stopped when it is in progress"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── GET /tasks/{taskId}/status ───────────────────────────────────────────────
+  /tasks/{taskId}/status:
+    get:
+      operationId: getTaskStatus
+      tags: [Tasks]
+      summary: Get Task Status
+      description: >
+        Lightweight endpoint for polling task progress. Returns only essential
+        status information — prefer this over `getTask` for frequent polling.
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      responses:
+        '200':
+          description: Task status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatusResponse'
+              examples:
+                in_progress:
+                  summary: Task in progress
+                  value:
+                    taskId: "9qQe2F8Z_nXx9-eJA0BD6"
+                    status: "processing"
+                    progress: 45
+                    inProgress: true
+                    isDone: false
+                    error: null
+                    createdAt: "2024-01-15T10:00:00.000Z"
+                    updatedAt: "2024-01-15T10:05:00.000Z"
+                    completedAt: null
+                    duration: null
+                completed:
+                  summary: Task completed
+                  value:
+                    taskId: "9qQe2F8Z_nXx9-eJA0BD6"
+                    status: "completed"
+                    progress: 100
+                    inProgress: false
+                    isDone: true
+                    error: null
+                    createdAt: "2024-01-15T10:00:00.000Z"
+                    updatedAt: "2024-01-15T10:15:00.000Z"
+                    completedAt: "2024-01-15T10:15:00.000Z"
+                    duration: "900s"
+                failed:
+                  summary: Task failed
+                  value:
+                    taskId: "9qQe2F8Z_nXx9-eJA0BD6"
+                    status: "error"
+                    progress: 60
+                    inProgress: false
+                    isDone: true
+                    error: "Failed to execute command: npm install"
+                    createdAt: "2024-01-15T10:00:00.000Z"
+                    updatedAt: "2024-01-15T10:10:00.000Z"
+                    completedAt: "2024-01-15T10:10:00.000Z"
+                    duration: "600s"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── POST /tasks/{taskId}/continue ────────────────────────────────────────────
+  /tasks/{taskId}/continue:
+    post:
+      operationId: continueTask
+      tags: [Tasks]
+      summary: Continue an Agent Task
+      description: >
+        Send a follow-up prompt to an existing task. The agent picks up where
+        it left off, applying new instructions to the same repository and branch.
+        GitHub context from the previous run is automatically restored.
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContinueTaskRequest'
+            examples:
+              simple:
+                summary: Simple follow-up
+                value:
+                  currentPrompt: "Also add unit tests for the new payment module"
+              override_agent:
+                summary: Override agent for follow-up
+                value:
+                  currentPrompt: "Refactor the authentication logic to use middleware"
+                  selectedAgent: "claude"
+                  selectedModel: "blackboxai/anthropic/claude-sonnet-4.5"
+              multi_agent:
+                summary: Multi-agent follow-up
+                value:
+                  currentPrompt: "Add comprehensive error handling and logging"
+                  multiLaunch: true
+                  selectedAgents:
+                    - agent: "claude"
+                      model: "blackboxai/anthropic/claude-sonnet-4.5"
+                    - agent: "blackbox"
+                      model: "blackboxai/blackbox-pro"
+      responses:
+        '200':
+          description: Task continuation started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContinueTaskResponse'
+              example:
+                success: true
+                message: "Task continue started successfully"
+        '400':
+          description: Missing prompt or invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Current prompt is required"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ── GET /tasks/{taskId}/stream ───────────────────────────────────────────────
+  /tasks/{taskId}/stream:
+    get:
+      operationId: streamTaskLogs
+      tags: [Streaming]
+      summary: Stream Task Logs
+      description: >
+        Stream task execution logs in real-time using Server-Sent Events (SSE).
+        Returns a `text/event-stream` response. Events include `connected`,
+        `log`, `status`, `complete`, and `error`.
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+        - name: fromIndex
+          in: query
+          description: >
+            Start streaming from this log index. Useful for resuming after
+            disconnection. Defaults to 0 (stream from beginning).
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+        - name: includeStatus
+          in: query
+          description: >
+            Include periodic task status updates in the stream every ~2 seconds.
+          schema:
+            type: boolean
+            default: true
+          example: true
+      responses:
+        '200':
+          description: SSE stream established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: >
+                  Server-Sent Events stream. Each event has the format:
+                  `event: <type>\ndata: <json>\n\n`
+
+                  **Event types:**
+                  - `connected` — stream started, includes taskId and fromIndex
+                  - `log` — individual log entry with index, type, message, agent, step
+                  - `status` — periodic status update (status, error)
+                  - `complete` — stream finished (status, totalLogs, message)
+                  - `error` — stream error (error, details)
+              example: |
+                event: connected
+                data: {"taskId":"9qQe2F8Z_nXx9-eJA0BD6","fromIndex":0,"message":"Connected to log stream","timestamp":"2024-01-15T10:00:00.000Z"}
+
+                event: log
+                data: {"index":0,"log":{"type":"system","contentType":"system","message":"Cloning repository...","timestamp":"2024-01-15T10:00:01.000Z","agent":"claude","step":"git_cloning"},"timestamp":"2024-01-15T10:00:01.123Z"}
+
+                event: status
+                data: {"status":"processing","error":null}
+
+                event: complete
+                data: {"status":"completed","totalLogs":5,"message":"Task completed","timestamp":"2024-01-15T10:01:05.000Z"}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >
+        BLACKBOX API key in the format `bb_xxxxxxxxxxxxxxxxxxxxxx`.
+        Obtain from https://cloud.blackbox.ai → Profile → BLACKBOX API Token.
+
+  parameters:
+    taskId:
+      name: taskId
+      in: path
+      required: true
+      description: Unique identifier of the task.
+      schema:
+        type: string
+      example: "9qQe2F8Z_nXx9-eJA0BD6"
+
+  # ── Responses ────────────────────────────────────────────────────────────────
+  responses:
+    BadRequest:
+      description: Bad request — invalid parameters or body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Invalid agent selected"
+            message: "Agent 'invalid-agent' is not supported."
+            status: 400
+
+    Unauthorized:
+      description: Invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized"
+            message: "Invalid or missing API key"
+            status: 401
+
+    PaymentRequired:
+      description: Insufficient credits
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Insufficient credits. Please add credits or switch to a free model."
+            code: "INSUFFICIENT_CREDITS"
+
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Forbidden"
+            message: "User is not a member of the selected team"
+            status: 403
+
+    NotFound:
+      description: Task not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Task not found"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Internal server error"
+            status: 500
+
+    BadGateway:
+      description: GitHub API error or upstream failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "GitHub API error"
+            status: 502
+
+  # ── Schemas ──────────────────────────────────────────────────────────────────
+  schemas:
+
+    # ── Shared ─────────────────────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message or code.
+        message:
+          type: string
+          description: Human-readable error description.
+        code:
+          type: string
+          description: Machine-readable error code (e.g. INSUFFICIENT_CREDITS).
+        status:
+          type: integer
+          description: HTTP status code.
+
+    AgentConfig:
+      type: object
+      description: Configuration for a single agent in a multi-agent task.
+      required: [agent, model]
+      properties:
+        agent:
+          type: string
+          description: Agent type.
+          enum: [claude, blackbox, codex, gemini, blackbox-grok]
+          example: "claude"
+        model:
+          type: string
+          description: Model identifier for this agent.
+          example: "blackboxai/anthropic/claude-sonnet-4.5"
+
+    DiffStats:
+      type: object
+      description: Statistics about code changes made by the agent.
+      properties:
+        totalLinesAdded:
+          type: integer
+          example: 247
+        totalLinesRemoved:
+          type: integer
+          example: 12
+        totalFilesChanged:
+          type: integer
+          example: 4
+        initialCommitSha:
+          type: string
+          example: "dcee312deecf502c5a161d9067bf974dd9874bcf"
+
+    AgentExecution:
+      type: object
+      description: Execution details for a single agent in a multi-agent task.
+      properties:
+        agent:
+          type: string
+          example: "claude"
+        model:
+          type: string
+          example: "blackboxai/anthropic/claude-sonnet-4.5"
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed]
+          example: "completed"
+        executionId:
+          type: string
+          example: "exec_claude_001"
+        startedAt:
+          type: string
+          format: date-time
+          example: "2025-11-21T10:30:05.000Z"
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-11-21T10:32:15.000Z"
+        branchName:
+          type: string
+          nullable: true
+          example: "feature/add-stripe-payment-j6k-claude"
+        gitDiff:
+          type: string
+          nullable: true
+          description: Full git diff of changes made by this agent.
+        filesChanged:
+          type: integer
+          example: 1
+        linesAdded:
+          type: integer
+          example: 156
+        linesRemoved:
+          type: integer
+          example: 0
+        commits:
+          type: array
+          items:
+            $ref: '#/components/schemas/Commit'
+        error:
+          type: string
+          nullable: true
+        result:
+          type: object
+          nullable: true
+          properties:
+            summary:
+              type: string
+            files:
+              type: array
+              items:
+                type: string
+
+    Commit:
+      type: object
+      properties:
+        sha:
+          type: string
+          example: "abc123def456"
+        message:
+          type: string
+          example: "Add Stripe payments"
+        author:
+          type: string
+          example: "Claude Agent"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-11-21T10:32:10.000Z"
+
+    DiffAnalysis:
+      type: object
+      description: AI-generated comparison of multi-agent implementations.
+      properties:
+        analysis:
+          type: string
+          description: Detailed markdown analysis of all agent implementations.
+        bestAgent:
+          type: string
+          description: Name of the agent with the best implementation.
+          example: "claude"
+        analyzedAt:
+          type: string
+          format: date-time
+          example: "2025-11-20T23:41:36.810Z"
+
+    Task:
+      type: object
+      description: Full task object returned by create and get endpoints.
+      properties:
+        id:
+          type: string
+          description: Unique task identifier.
+          example: "ac2wbk3lXAufdSdIscsirg"
+        userId:
+          type: string
+          description: Email or ID of the user who created the task.
+          example: "user@example.com"
+        teamId:
+          type: string
+          nullable: true
+          description: Team ID if the task belongs to a team.
+        prompt:
+          type: string
+          description: The task description provided.
+          example: "Create README in French"
+        repoUrl:
+          type: string
+          nullable: true
+          description: GitHub repository URL.
+          example: "https://github.com/my-org/my-repo.git"
+        selectedAgent:
+          type: string
+          description: The AI agent used.
+          enum: [claude, blackbox, codex, gemini, blackbox-grok]
+          example: "blackbox"
+        selectedModel:
+          type: string
+          description: The specific model used.
+          example: "blackbox-pro"
+        installDependencies:
+          type: boolean
+          default: false
+        maxDuration:
+          type: integer
+          description: Maximum execution time in seconds.
+          default: 300
+          example: 300
+        keepAlive:
+          type: boolean
+          default: false
+        status:
+          type: string
+          description: Current task status.
+          enum: [pending, processing, saving, completed, error, stopped, timeout]
+          example: "pending"
+        progress:
+          type: integer
+          description: Completion percentage (0–100).
+          minimum: 0
+          maximum: 100
+          example: 0
+        logs:
+          type: array
+          items:
+            type: string
+          description: Array of log entries.
+        error:
+          type: string
+          nullable: true
+          description: Error message if the task failed.
+        selectedBranch:
+          type: string
+          nullable: true
+          description: The branch worked on.
+          example: "main"
+        branchName:
+          type: string
+          nullable: true
+          description: New branch created for the task changes.
+          example: "feature/add-stripe-payment-abc"
+        sandboxUrl:
+          type: string
+          nullable: true
+        sandboxId:
+          type: string
+          nullable: true
+          example: "sbx_XJV19Afr0gXFrc723Asn2bfSb3H8"
+        merged:
+          type: boolean
+          default: false
+        prNumber:
+          type: integer
+          nullable: true
+          example: 42
+        prUrl:
+          type: string
+          nullable: true
+          example: "https://github.com/my-org/my-repo/pull/42"
+        multiLaunch:
+          type: boolean
+          description: Whether multiple agents were launched.
+          default: false
+        selectedAgents:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/AgentConfig'
+          description: Agent configurations for multi-agent tasks.
+        agentExecutions:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/AgentExecution'
+          description: Execution details per agent (multi-agent tasks only).
+        diffAnalysis:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DiffAnalysis'
+        diffStats:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DiffStats'
+        cumulativeDiff:
+          type: string
+          nullable: true
+          description: Full git diff of all changes across all agents.
+        followupMessages:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/FollowupMessage'
+        autoDeployEnabled:
+          type: boolean
+          nullable: true
+          default: false
+        deployments:
+          type: array
+          nullable: true
+          items:
+            type: object
+        badge:
+          type: string
+          nullable: true
+        batchId:
+          type: string
+          nullable: true
+        isPublic:
+          type: boolean
+          default: false
+        isEmptyGitUser:
+          type: boolean
+          default: false
+        taskSource:
+          type: string
+          example: "manual"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-11-19T23:40:21.585Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-11-19T23:40:21.585Z"
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    FollowupMessage:
+      type: object
+      description: A follow-up message appended to a task via the continue endpoint.
+      properties:
+        message:
+          type: string
+          example: "Also add unit tests for the new payment module"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-11-21T10:35:00.000Z"
+        selectedAgent:
+          type: string
+          example: "blackbox"
+        selectedModel:
+          type: string
+          example: "blackboxai/blackbox-pro"
+        status:
+          type: string
+          enum: [processing, completed, error]
+          example: "completed"
+        statusMessage:
+          type: string
+          nullable: true
+
+    TaskListItem:
+      type: object
+      description: Abbreviated task object returned in list responses.
+      properties:
+        id:
+          type: string
+          example: "9qQe2F8Z_nXx9-eJA0BD6"
+        userId:
+          type: string
+          example: "user@example.com"
+        teamId:
+          type: string
+          nullable: true
+        prompt:
+          type: string
+          example: "Add Stripe payment integration"
+        repoUrl:
+          type: string
+          nullable: true
+        selectedAgent:
+          type: string
+          example: "claude"
+        selectedModel:
+          type: string
+          example: "claude-sonnet-4.5"
+        installDependencies:
+          type: boolean
+        maxDuration:
+          type: integer
+        status:
+          type: string
+          enum: [pending, processing, saving, completed, error, stopped, timeout]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        error:
+          type: string
+          nullable: true
+        selectedBranch:
+          type: string
+          nullable: true
+        branchName:
+          type: string
+          nullable: true
+        sandboxUrl:
+          type: string
+          nullable: true
+        sandboxId:
+          type: string
+          nullable: true
+        merged:
+          type: boolean
+        diffStats:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DiffStats'
+        autoDeployEnabled:
+          type: boolean
+          nullable: true
+        deployments:
+          type: array
+          nullable: true
+          items:
+            type: object
+        badge:
+          type: string
+          nullable: true
+        batchId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        creatorName:
+          type: string
+          nullable: true
+        creatorImage:
+          type: string
+          nullable: true
+        prNumber:
+          type: integer
+          nullable: true
+        prUrl:
+          type: string
+          nullable: true
+        isEmptyGitUser:
+          type: boolean
+
+    # ── Request bodies ──────────────────────────────────────────────────────────
+    CreateTaskRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          description: Task description or instruction for the AI agent.
+          example: "Add Stripe Payment Integration"
+        repoUrl:
+          type: string
+          description: GitHub repository URL to work on.
+          example: "https://github.com/my-org/my-repo.git"
+        selectedBranch:
+          type: string
+          description: Branch to work on. Defaults to `main`.
+          default: "main"
+          example: "main"
+        selectedAgent:
+          type: string
+          description: >
+            AI agent to use (single-agent mode). One of: `claude`, `blackbox`,
+            `codex`, `gemini`.
+          enum: [claude, blackbox, codex, gemini, blackbox-grok]
+          default: "blackbox"
+          example: "blackbox"
+        selectedModel:
+          type: string
+          description: >
+            Specific model for the selected agent.
+
+            **Claude models:** `claude-sonnet-4.5`, `claude-sonnet-4`, `claude-opus-4.5`
+
+            **BLACKBOX models:** `blackbox-pro`, `claude-sonnet-4.5`, `gpt-5.2-codex`, `claude-opus-4.5`, `grok-code-fast-1:free`, `gemini-2.5-pro`
+
+            **Codex models:** `gpt-5.2-codex`, `gpt-5-codex`, `gpt-5-mini`, `gpt-5-nano`, `gpt-4.1`
+
+            **Gemini models:** `gemini-2.0-flash-exp`, `gemini-2.5-pro`, `gemini-2.5-flash`
+          default: "blackbox-pro"
+          example: "blackbox-pro"
+        selectedAgents:
+          type: array
+          description: >
+            Agent configurations for multi-agent parallel execution (2–5 agents).
+            When provided, overrides `selectedAgent` and `selectedModel`.
+          minItems: 2
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/AgentConfig'
+        installDependencies:
+          type: boolean
+          description: Run dependency installation before executing the task.
+          default: false
+        maxDuration:
+          type: integer
+          description: Maximum execution time in seconds (30–600).
+          minimum: 30
+          maximum: 600
+          default: 300
+        keepAlive:
+          type: boolean
+          description: Keep the sandbox alive after task completion.
+          default: false
+        environmentVariables:
+          type: string
+          description: >
+            Environment variables as a newline-separated `KEY=VALUE` string.
+          example: "STRIPE_KEY=sk_test_xxx\nNODE_ENV=production"
+        globalInstructions:
+          type: string
+          description: System-level instructions prepended to the agent's context.
+
+    CancelTaskRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          description: Must be `"stop"` to cancel the task.
+          enum: [stop]
+          example: "stop"
+
+    ContinueTaskRequest:
+      type: object
+      required: [currentPrompt]
+      properties:
+        currentPrompt:
+          type: string
+          description: >
+            Follow-up instruction for the agent. Appended to the task's history
+            so the agent has full context of prior work.
+          example: "Also add unit tests for the new payment module"
+        selectedAgent:
+          type: string
+          description: Override the agent for this follow-up.
+          enum: [claude, blackbox, codex, gemini, blackbox-grok]
+        selectedModel:
+          type: string
+          description: Override the model for this follow-up.
+          example: "blackboxai/anthropic/claude-sonnet-4.5"
+        maxDuration:
+          type: integer
+          description: Maximum execution time in seconds for this follow-up.
+          minimum: 30
+          maximum: 600
+        keepAlive:
+          type: boolean
+          description: Keep the sandbox alive after this follow-up completes.
+          default: false
+        installDependencies:
+          type: boolean
+          description: Run dependency installation before this follow-up.
+          default: false
+        environmentVariables:
+          type: string
+          description: Environment variables as a newline-separated `KEY=VALUE` string.
+        globalInstructions:
+          type: string
+          description: System-level instructions for this follow-up.
+        multiLaunch:
+          type: boolean
+          description: Run this follow-up across multiple agents in parallel.
+          default: false
+        selectedAgents:
+          type: array
+          description: Agent configurations for multi-agent follow-up (required when `multiLaunch` is true).
+          minItems: 2
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/AgentConfig'
+
+    # ── Response bodies ─────────────────────────────────────────────────────────
+    CreateTaskResponse:
+      type: object
+      properties:
+        task:
+          $ref: '#/components/schemas/Task'
+        taskUrl:
+          type: string
+          description: URL to view the task in the Blackbox dashboard.
+          example: "https://cloud.blackbox.ai/tasks/ac2wbk3lXAufdSdIscsirg"
+
+    GetTaskResponse:
+      type: object
+      properties:
+        task:
+          $ref: '#/components/schemas/Task'
+
+    ListTasksResponse:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskListItem'
+        hasMore:
+          type: boolean
+          description: Whether more tasks are available beyond the current page.
+          example: true
+        offset:
+          type: integer
+          description: The offset value used for this request.
+          example: 0
+        limit:
+          type: integer
+          description: The limit value used for this request.
+          example: 50
+
+    TaskStatusResponse:
+      type: object
+      properties:
+        taskId:
+          type: string
+          example: "9qQe2F8Z_nXx9-eJA0BD6"
+        status:
+          type: string
+          enum: [pending, processing, saving, completed, error, stopped, timeout]
+          example: "processing"
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 45
+        inProgress:
+          type: boolean
+          description: True when status is pending, processing, or saving.
+          example: true
+        isDone:
+          type: boolean
+          description: True when status is completed, error, stopped, or timeout.
+          example: false
+        error:
+          type: string
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:05:00.000Z"
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        duration:
+          type: string
+          nullable: true
+          description: Task duration (e.g. "900s") once completed.
+          example: null
+
+    CancelTaskResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Task stopped successfully"
+        task:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "9qQe2F8Z_nXx9-eJA0BD6"
+            userId:
+              type: string
+              example: "user@example.com"
+            status:
+              type: string
+              example: "stopped"
+            error:
+              type: string
+              example: "Task was stopped by user"
+            updatedAt:
+              type: string
+              format: date-time
+              example: "2024-01-15T10:30:00.000Z"
+            completedAt:
+              type: string
+              format: date-time
+              example: "2024-01-15T10:30:00.000Z"
+
+    ContinueTaskResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Task continue started successfully"

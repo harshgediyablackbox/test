@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blackbox AI API — Postman Testing Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0f14;
+      --surface: #161a24;
+      --surface2: #1e2433;
+      --border: #2a3147;
+      --accent: #5b7fff;
+      --accent2: #7c5cff;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #e8eaf6;
+      --muted: #7b82a6;
+      --mono: "JetBrains Mono", monospace;
+    }
+    body { font-family: "Inter", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+    header { background: linear-gradient(135deg, #0d0f14 0%, #131829 50%, #0d1220 100%); border-bottom: 1px solid var(--border); padding: 0 2rem; position: sticky; top: 0; z-index: 100; }
+    .header-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; }
+    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; font-weight: 900; }
+    .badge { font-size: 0.7rem; font-weight: 600; background: rgba(91,127,255,0.15); color: var(--accent); border: 1px solid rgba(91,127,255,0.3); border-radius: 99px; padding: 2px 10px; letter-spacing: 0.05em; }
+    .hero { text-align: center; padding: 72px 2rem 56px; background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(91,127,255,0.12) 0%, transparent 70%); }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; background: linear-gradient(135deg, #fff 30%, var(--accent) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 1rem; }
+    .hero p { color: var(--muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto 2rem; }
+    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border: none; border-radius: 10px; padding: 12px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: transform 0.2s, box-shadow 0.2s; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(91,127,255,0.35); }
+    .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 12px 24px; font-size: 0.95rem; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: border-color 0.2s, background 0.2s; }
+    .btn-secondary:hover { border-color: var(--accent); background: rgba(91,127,255,0.06); }
+    main { max-width: 1100px; margin: 0 auto; padding: 0 2rem 80px; }
+    .section { margin-bottom: 56px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .step-num { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+    .section-header h2 { font-size: 1.4rem; font-weight: 700; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 16px; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .method-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; transition: border-color 0.2s, transform 0.2s; }
+    .method-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .method-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .method-badge { font-family: var(--mono); font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 6px; letter-spacing: 0.04em; }
+    .get { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .post { background: rgba(91,127,255,0.15); color: #7ba3ff; border: 1px solid rgba(91,127,255,0.3); }
+    .patch { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .endpoint-path { font-family: var(--mono); font-size: 0.82rem; color: var(--muted); }
+    .method-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+    .method-card p { font-size: 0.88rem; color: var(--muted); }
+    .code-block { background: #0a0c12; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .code-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: 0.8rem; font-weight: 600; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+    .copy-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.78rem; display: flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; transition: background 0.2s, color 0.2s; }
+    .copy-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+    .copy-btn.copied { color: var(--success); }
+    pre { padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 0.83rem; line-height: 1.7; white-space: pre; }
+    .kw { color: #c792ea; }
+    .str { color: #c3e88d; }
+    .num { color: #f78c6c; }
+    .key { color: #82aaff; }
+    .cmt { color: #546e7a; font-style: italic; }
+    .url { color: #89ddff; }
+    .steps-list { list-style: none; }
+    .steps-list li { display: flex; gap: 16px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .steps-list li:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .step-circle { width: 28px; height: 28px; flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-top: 2px; }
+    .step-content strong { display: block; margin-bottom: 4px; font-weight: 600; }
+    .step-content p { font-size: 0.9rem; color: var(--muted); }
+    .ic { font-family: var(--mono); font-size: 0.82rem; background: rgba(91,127,255,0.12); color: #a5b4fc; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(91,127,255,0.2); }
+    .alert { border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; font-size: 0.9rem; display: flex; gap: 12px; align-items: flex-start; }
+    .alert-info { background: rgba(91,127,255,0.08); border: 1px solid rgba(91,127,255,0.25); }
+    .alert-warning { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); color: #fbbf24; }
+    .alert-success { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); color: #4ade80; }
+    .alert-icon { font-size: 1.1rem; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+    .tab { padding: 10px 18px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer; font-family: inherit; font-size: 0.9rem; font-weight: 500; transition: color 0.2s, border-color 0.2s; margin-bottom: -1px; }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .import-flow { display: flex; align-items: center; gap: 8px; padding: 20px; background: var(--surface2); border-radius: 12px; border: 1px solid var(--border); flex-wrap: wrap; margin-bottom: 16px; }
+    .flow-step { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
+    .flow-arrow { color: var(--muted); font-size: 1.1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { text-align: left; padding: 10px 16px; background: var(--surface2); border-bottom: 2px solid var(--border); font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .td-mono { font-family: var(--mono); font-size: 0.82rem; color: #82aaff; }
+    .td-desc { color: var(--muted); }
+    .req { color: var(--danger); font-size: 0.75rem; font-weight: 700; }
+    .opt { color: var(--muted); font-size: 0.75rem; }
+    footer { border-top: 1px solid var(--border); padding: 32px 2rem; text-align: center; color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    @media (max-width: 640px) { .hero { padding: 48px 1rem 40px; } main { padding: 0 1rem 60px; } .card-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">B</div>
+      Blackbox AI API
+    </div>
+    <span class="badge">v1.0.0</span>
+  </div>
+</header>
+
+<div class="hero">
+  <h1>Test the SDK via Postman</h1>
+  <p>Import the OpenAPI spec in one click and start making authenticated API calls to the Blackbox AI Agent API in minutes.</p>
+  <div class="hero-btns">
+    <a href="/openai.yaml" download="blackbox-api.yaml" class="btn-primary">&#8595; Download OpenAPI Spec</a>
+    <a href="https://cloud.blackbox.ai" target="_blank" class="btn-secondary">Get API Key &#8599;</a>
+  </div>
+</div>
+
+<main>
+
+  <!-- Step 1: Import -->
+  <div class="section">
+    <div class="section-header">
+      <div class="step-num">1</div>
+      <h2>Import the OpenAPI Spec into Postman</h2>
+    </div>
+
+    <div class="alert alert-success">
+      <span class="alert-icon">&#10003;</span>
+      <span>The <code>openai.yaml</code> in this repo is a complete OpenAPI 3.1.0 spec. Postman can import it directly and auto-generate a full collection with all 7 endpoints, request bodies, and example values.</span>
+    </div>
+
+    <div class="import-flow">
+      <div class="flow-step">Open Postman</div>
+      <div class="flow-arrow">&#8594;</div>
+      <div class="flow-step">Click Import</div>
+      <div class="flow-arrow">&#8594;</div>
+      <div class="flow-step">Link or File</div>
+      <div class="flow-arrow">&#8594;</div>
+      <div class="flow-step">Paste URL or upload .yaml</div>
+      <div class="flow-arrow">&#8594;</div>
+      <div class="flow-step">Collection auto-generated</div>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab(this,'url')">Import via URL</button>
+        <button class="tab" onclick="switchTab(this,'file')">Import via File</button>
+        <button class="tab" onclick="switchTab(this,'raw')">Import via Raw Text</button>
+      </div>
+
+      <div id="panel-url" class="tab-panel active">
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:12px;">In Postman: <strong>Import &rarr; Link</strong>, paste this raw GitHub URL:</p>
+        <div class="code-block">
+          <div class="code-header">
+            Postman Import URL
+            <button class="copy-btn" onclick="copyText(this,'https://raw.githubusercontent.com/harshgediyablackbox/test/main/openai.yaml')">&#10697; Copy</button>
+          </div>
+          <pre><span class="url">https://raw.githubusercontent.com/harshgediyablackbox/test/main/openai.yaml</span></pre>
+        </div>
+        <p style="color:var(--muted);font-size:0.85rem;margin-top:10px;">Or download the file using the button above and use <strong>Import &rarr; File</strong>.</p>
+      </div>
+
+      <div id="panel-file" class="tab-panel">
+        <ul class="steps-list" style="margin-top:8px;">
+          <li>
+            <div class="step-circle">1</div>
+            <div class="step-content">
+              <strong>Download the spec</strong>
+              <p>Click <strong>Download OpenAPI Spec</strong> at the top of this page to save <span class="ic">blackbox-api.yaml</span> to your machine.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-circle">2</div>
+            <div class="step-content">
+              <strong>Open Postman and click Import</strong>
+              <p>In the Postman sidebar, click <span class="ic">Import</span> (top-left), then drag and drop the <span class="ic">.yaml</span> file or browse to it.</p>
+            </div>
+          </li>
+          <li>
+            <div class="step-circle">3</div>
+            <div class="step-content">
+              <strong>Select "Postman Collection" as the import format</strong>
+              <p>Postman auto-detects it's an OpenAPI spec. Click <strong>Import</strong> to generate the full collection instantly.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div id="panel-raw" class="tab-panel">
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:12px;">In Postman: <strong>Import &rarr; Raw text</strong>, paste the full YAML contents from <span class="ic">openai.yaml</span>.</p>
+        <div class="alert alert-warning">
+          <span class="alert-icon">&#9888;</span>
+          <span>For large files like this 1,200-line spec, prefer the File or URL import methods — they're more reliable.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Auth -->
+  <div class="section">
+    <div class="section-header">
+      <div class="step-num">2</div>
+      <h2>Configure Authentication</h2>
+    </div>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">&#9432;</span>
+      <span>All endpoints require a Bearer token. Get your key from <a href="https://cloud.blackbox.ai" target="_blank" style="color:var(--accent);">cloud.blackbox.ai</a> &rarr; Profile &rarr; BLACKBOX API Token. Keys start with <code>bb_</code>.</span>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:16px;font-size:1rem;">Set up a Postman Environment</h3>
+      <ul class="steps-list">
+        <li>
+          <div class="step-circle">1</div>
+          <div class="step-content">
+            <strong>Create a new Environment</strong>
+            <p>In Postman: <span class="ic">Environments</span> sidebar &rarr; <span class="ic">+</span> &rarr; name it <span class="ic">Blackbox AI</span>.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-circle">2</div>
+          <div class="step-content">
+            <strong>Add the variables below</strong>
+            <p>Set the <strong>Current Value</strong> for each variable. Secret values can be marked as "secret" so Postman masks them.</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-circle">3</div>
+          <div class="step-content">
+            <strong>Set Collection-level auth</strong>
+            <p>Open the imported collection &rarr; <span class="ic">Authorization</span> tab &rarr; Type: <span class="ic">Bearer Token</span> &rarr; Token: <span class="ic">{{apiKey}}</span>. All child requests inherit this.</p>
+          </div>
+        </li>
+      </ul>
+
+      <div style="margin-top:20px;border-radius:10px;overflow:hidden;border:1px solid var(--border);">
+        <table>
+          <thead>
+            <tr>
+              <th>Variable</th>
+              <th>Example / Default</th>
+              <th>Required</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-mono">apiKey</td>
+              <td class="td-mono" style="color:#c3e88d;">bb_xxxxxxxxxxxxxx</td>
+              <td><span class="req">REQUIRED</span></td>
+              <td class="td-desc">Your Blackbox API key from cloud.blackbox.ai</td>
+            </tr>
+            <tr>
+              <td class="td-mono">baseUrl</td>
+              <td class="td-mono" style="color:#89ddff;">https://cloud.blackbox.ai/api</td>
+              <td><span class="opt">optional</span></td>
+              <td class="td-desc">API base URL (already set in the spec)</td>
+            </tr>
+            <tr>
+              <td class="td-mono">taskId</td>
+              <td class="td-mono" style="color:#f78c6c;">9qQe2F8Z_nXx9-eJA0BD6</td>
+              <td><span class="opt">optional</span></td>
+              <td class="td-desc">Re-usable task ID for GET / PATCH / stream calls</td>
+            </tr>
+            <tr>
+              <td class="td-mono">repoUrl</td>
+              <td class="td-mono">https://github.com/org/repo.git</td>
+              <td><span class="opt">optional</span></td>
+              <td class="td-desc">Target GitHub repository URL</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Endpoints -->
+  <div class="section">
+    <div class="section-header">
+      <div class="step-num">3</div>
+      <h2>Available Endpoints</h2>
+    </div>
+    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:20px;">All 7 endpoints are imported automatically. Here is a quick reference:</p>
+
+    <div class="card-grid">
+      <div class="method-card">
+        <div class="method-row">
+          <span class="method-badge post">POST</span>
+          <span class="endpoint-path">/tasks</span>
+        </div>
+        <h3>Create Task</h3>
+        <p>Launch a new agent task against a GitHub repo. Supports single-agent and multi-agent (2&ndash;5) parallel modes.</p>
+      </div>
+      <div class="method-card">
+        <div class="method-row">
+          <span class="method-badge get">GET</span>
+          <span class="endpoint-path">/tasks</span>
+        </div>
+        <h3>List Tasks</h3>
+        <p>Paginated list with filtering by type (all, tasks, batch) and status (active, completed, failed, stopped).</p>
+      </div>
+      <div class="method-card">
+        <div class="method-row">
+          <span class="method-badge get">GET</span>
+          <span class="endpoint-path">/tasks/{taskId}</span>
+        </div>
+        <h3>Get Task Details</h3>
+        <p>Full task object including logs, diff stats, multi-agent executions, PR number, and branch info.</p>
+      </div>
+      <div class="method-card">
+        <div class="method-row">
+          <span class="method-badge patch">PATCH</span>
+          <span class="endpoint-path">/tasks/{taskId}</span>
+        </div>
+        <h3>Cancel Task</h3>
+        <p>Stop a running task. Only works when status is <code>processing</code> or <code>saving</code>.</p>
+      </div>
+      <div class="method-card">
+        <div class="method-row">
+          <span class="method-badge get">GET</span>
+          <span class="endpoint-path">/tasks/{taskId}/status</span>
+        </div>
+        <h3>Get Task Status</h3>
+        <p>Lightweight polling endpoint returning status, progress, and timestamps. Use this instead of getTask for frequent polling.</p>
+      </div>
+      <div class="method-card">
+        <div class="method-row">
+          <span class="method-badge post">POST</span>
+          <span class="endpoint-path">/tasks/{taskId}/continue</span>
+        </div>
+        <h3>Continue Task</h3>
+        <p>Send a follow-up prompt to an existing task. The agent resumes with full prior context and history.</p>
+      </div>
+      <div class="method-card">
+        <div class="method-row">
+          <span class="method-badge get">GET</span>
+          <span class="endpoint-path">/tasks/{taskId}/stream</span>
+        </div>
+        <h3>Stream Task Logs</h3>
+        <p>Real-time SSE log stream. Set <code>Accept: text/event-stream</code> in Postman headers. Supported since Postman v10.18.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Example requests -->
+  <div class="section">
+    <div class="section-header">
+      <div class="step-num">4</div>
+      <h2>Example Requests</h2>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab2(this,'create')">Create Task</button>
+        <button class="tab" onclick="switchTab2(this,'multi')">Multi-Agent</button>
+        <button class="tab" onclick="switchTab2(this,'status')">Poll Status</button>
+        <button class="tab" onclick="switchTab2(this,'stream')">Stream Logs</button>
+        <button class="tab" onclick="switchTab2(this,'cont')">Continue</button>
+      </div>
+
+      <div id="panel2-create" class="tab-panel active">
+        <div class="code-block">
+          <div class="code-header">
+            POST /tasks — Single Agent
+            <button class="copy-btn" onclick="copyText(this,`{
+  &quot;prompt&quot;: &quot;Add a dark mode toggle to the React app&quot;,
+  &quot;repoUrl&quot;: &quot;https://github.com/my-org/my-repo.git&quot;,
+  &quot;selectedBranch&quot;: &quot;main&quot;,
+  &quot;selectedAgent&quot;: &quot;blackbox&quot;,
+  &quot;selectedModel&quot;: &quot;blackbox-pro&quot;,
+  &quot;installDependencies&quot;: false,
+  &quot;maxDuration&quot;: 300
+}`)">&#10697; Copy</button>
+          </div>
+          <pre><span class="cmt">// POST https://cloud.blackbox.ai/api/tasks
+// Authorization: Bearer {{apiKey}}
+// Content-Type: application/json</span>
+
+{
+  <span class="str">"prompt"</span>: <span class="str">"Add a dark mode toggle to the React app"</span>,
+  <span class="str">"repoUrl"</span>: <span class="str">"https://github.com/my-org/my-repo.git"</span>,
+  <span class="str">"selectedBranch"</span>: <span class="str">"main"</span>,
+  <span class="str">"selectedAgent"</span>: <span class="str">"blackbox"</span>,
+  <span class="str">"selectedModel"</span>: <span class="str">"blackbox-pro"</span>,
+  <span class="str">"installDependencies"</span>: <span class="kw">false</span>,
+  <span class="str">"maxDuration"</span>: <span class="num">300</span>
+}</pre>
+        </div>
+      </div>
+
+      <div id="panel2-multi" class="tab-panel">
+        <div class="code-block">
+          <div class="code-header">
+            POST /tasks — Multi-Agent Parallel
+            <button class="copy-btn" onclick="copyId(this,'raw-multi')">&#10697; Copy</button>
+          </div>
+          <pre id="raw-multi"><span class="cmt">// POST https://cloud.blackbox.ai/api/tasks
+// Authorization: Bearer {{apiKey}}
+// Content-Type: application/json</span>
+
+{
+  <span class="str">"prompt"</span>: <span class="str">"Refactor auth module to use JWT middleware"</span>,
+  <span class="str">"repoUrl"</span>: <span class="str">"https://github.com/my-org/my-repo.git"</span>,
+  <span class="str">"selectedBranch"</span>: <span class="str">"main"</span>,
+  <span class="str">"selectedAgents"</span>: [
+    {
+      <span class="str">"agent"</span>: <span class="str">"claude"</span>,
+      <span class="str">"model"</span>: <span class="str">"blackboxai/anthropic/claude-sonnet-4.5"</span>
+    },
+    {
+      <span class="str">"agent"</span>: <span class="str">"blackbox"</span>,
+      <span class="str">"model"</span>: <span class="str">"blackboxai/blackbox-pro"</span>
+    }
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div id="panel2-status" class="tab-panel">
+        <div class="code-block">
+          <div class="code-header">
+            GET /tasks/{taskId}/status — Poll
+            <button class="copy-btn" onclick="copyText(this,'GET https://cloud.blackbox.ai/api/tasks/{{taskId}}/status')">&#10697; Copy</button>
+          </div>
+          <pre><span class="cmt">// GET https://cloud.blackbox.ai/api/tasks/{{taskId}}/status
+// Authorization: Bearer {{apiKey}}
+// No request body needed</span>
+
+<span class="cmt">// Example 200 response:</span>
+{
+  <span class="str">"taskId"</span>: <span class="str">"9qQe2F8Z_nXx9-eJA0BD6"</span>,
+  <span class="str">"status"</span>: <span class="str">"processing"</span>,
+  <span class="str">"progress"</span>: <span class="num">45</span>,
+  <span class="str">"inProgress"</span>: <span class="kw">true</span>,
+  <span class="str">"isDone"</span>: <span class="kw">false</span>,
+  <span class="str">"error"</span>: <span class="kw">null</span>
+}</pre>
+        </div>
+      </div>
+
+      <div id="panel2-stream" class="tab-panel">
+        <div class="code-block">
+          <div class="code-header">
+            GET /tasks/{taskId}/stream — SSE
+            <button class="copy-btn" onclick="copyText(this,'curl -N -H \"Authorization: Bearer YOUR_KEY\" https://cloud.blackbox.ai/api/tasks/TASK_ID/stream')">&#10697; Copy cURL</button>
+          </div>
+          <pre><span class="cmt">// GET https://cloud.blackbox.ai/api/tasks/{{taskId}}/stream
+// Authorization: Bearer {{apiKey}}
+// Accept: text/event-stream
+// Query params: ?fromIndex=0&amp;includeStatus=true</span>
+
+<span class="cmt">// SSE events streamed in real-time:</span>
+event: connected
+data: {"taskId":"9qQe2F8Z_nXx9-eJA0BD6","fromIndex":0}
+
+event: log
+data: {"index":0,"log":{"message":"Cloning repository...","step":"git_cloning"}}
+
+event: status
+data: {"status":"processing","error":null}
+
+event: complete
+data: {"status":"completed","totalLogs":24}</pre>
+        </div>
+        <div class="alert alert-warning" style="margin-top:12px;">
+          <span class="alert-icon">&#9888;</span>
+          <span>SSE streaming requires Postman v10.18+. For older versions, use cURL with the <code>-N</code> flag (no buffering): <code>curl -N -H "Authorization: Bearer $KEY" https://cloud.blackbox.ai/api/tasks/ID/stream</code></span>
+        </div>
+      </div>
+
+      <div id="panel2-cont" class="tab-panel">
+        <div class="code-block">
+          <div class="code-header">
+            POST /tasks/{taskId}/continue — Follow-up
+            <button class="copy-btn" onclick="copyId(this,'raw-cont')">&#10697; Copy</button>
+          </div>
+          <pre id="raw-cont"><span class="cmt">// POST https://cloud.blackbox.ai/api/tasks/{{taskId}}/continue
+// Authorization: Bearer {{apiKey}}
+// Content-Type: application/json</span>
+
+{
+  <span class="str">"currentPrompt"</span>: <span class="str">"Also add unit tests for the new auth module"</span>,
+  <span class="str">"selectedAgent"</span>: <span class="str">"claude"</span>,
+  <span class="str">"selectedModel"</span>: <span class="str">"blackboxai/anthropic/claude-sonnet-4.5"</span>,
+  <span class="str">"maxDuration"</span>: <span class="num">300</span>
+}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5: Tips -->
+  <div class="section">
+    <div class="section-header">
+      <div class="step-num">5</div>
+      <h2>Postman Tips &amp; Power Workflow</h2>
+    </div>
+    <div class="card-grid">
+      <div class="card" style="margin-bottom:0;">
+        <h3 style="margin-bottom:10px;font-size:1rem;">Auto-extract taskId in Tests tab</h3>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:10px;">In the <strong>Tests</strong> tab of the Create Task request, add this script so Postman auto-saves the task ID for subsequent requests:</p>
+        <div class="code-block">
+          <pre style="font-size:0.78rem;">const r = pm.response.json();
+pm.environment.set(<span class="str">"taskId"</span>, r.task.id);
+console.log(<span class="str">"taskId set:"</span>, r.task.id);</pre>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <h3 style="margin-bottom:10px;font-size:1rem;">Poll until complete with Collection Runner</h3>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:10px;">Use <strong>Postman Flows</strong> or a Collection Runner loop on the status endpoint. In the Tests tab add:</p>
+        <div class="code-block">
+          <pre style="font-size:0.78rem;">const r = pm.response.json();
+if (!r.isDone) {
+  <span class="cmt">// keep polling</span>
+  postman.setNextRequest(<span class="str">"Get Task Status"</span>);
+}</pre>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <h3 style="margin-bottom:10px;font-size:1rem;">Available Agents &amp; Models</h3>
+        <p style="color:var(--muted);font-size:0.9rem;">Agents: <span class="ic">claude</span> <span class="ic">blackbox</span> <span class="ic">codex</span> <span class="ic">gemini</span> <span class="ic">blackbox-grok</span><br/><br/>Claude models: <span class="ic">claude-sonnet-4.5</span> <span class="ic">claude-opus-4.5</span><br/>BLACKBOX models: <span class="ic">blackbox-pro</span> <span class="ic">gemini-2.5-pro</span><br/>Codex models: <span class="ic">gpt-5.2-codex</span> <span class="ic">gpt-4.1</span></p>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <h3 style="margin-bottom:10px;font-size:1rem;">Error Codes to Know</h3>
+        <p style="color:var(--muted);font-size:0.9rem;"><strong style="color:var(--danger);">401</strong> — Invalid or missing API key<br/><strong style="color:var(--warning);">402</strong> — Insufficient credits<br/><strong style="color:var(--warning);">400</strong> — Invalid agent or bad request body<br/><strong style="color:var(--muted);">404</strong> — Task not found<br/><strong style="color:var(--muted);">502</strong> — GitHub API error / upstream failure</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <p>Blackbox AI Agent API &mdash; <a href="/openai.yaml" download>Download OpenAPI Spec</a> &mdash; <a href="https://cloud.blackbox.ai" target="_blank">cloud.blackbox.ai</a></p>
+</footer>
+
+<script>
+  function switchTab(btn, id) {
+    var card = btn.closest('.card');
+    card.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    card.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('panel-' + id).classList.add('active');
+  }
+  function switchTab2(btn, id) {
+    var card = btn.closest('.card');
+    card.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    card.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('panel2-' + id).classList.add('active');
+  }
+  function copyText(btn, text) {
+    navigator.clipboard.writeText(text).then(function(){ flash(btn); }).catch(function(){
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); flash(btn);
+    });
+  }
+  function copyId(btn, id) {
+    var el = document.getElementById(id);
+    copyText(btn, el ? el.innerText : '');
+  }
+  function flash(btn) {
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(function(){ btn.innerHTML = '&#10697; Copy'; btn.classList.remove('copied'); }, 2000);
+  }
+</script>
+</body>
+</html>

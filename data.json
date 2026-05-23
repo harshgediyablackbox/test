@@ -1,0 +1,18 @@
+{
+  "project": "test",
+  "version": "1.0.0",
+  "description": "Sample JSON data file",
+  "author": "harshgediyablackbox",
+  "created": "2026-05-23",
+  "tags": ["json", "data", "example"],
+  "settings": {
+    "debug": false,
+    "maxRetries": 3,
+    "timeout": 5000
+  },
+  "items": [
+    { "id": 1, "name": "Item One", "active": true },
+    { "id": 2, "name": "Item Two", "active": false },
+    { "id": 3, "name": "Item Three", "active": true }
+  ]
+}
